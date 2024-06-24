@@ -140,3 +140,62 @@ body, html {
     background-color: #138496;
     border-color: #117a8b;
 }
+
+.dark-mode .modal-content {
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+}
+
+.dark-mode .modal-header {
+    border-bottom-color: #444;
+}
+
+.dark-mode .modal-footer {
+    border-top-color: #444;
+}
+
+.dark-mode .form-select,
+.dark-mode .form-control {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    border-color: #444;
+}
+
+.dark-mode .form-select:focus,
+.dark-mode .form-control:focus {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    border-color: #0056b3;
+    box-shadow: 0 0 0 0.25rem rgba(0, 86, 179, 0.25);
+}
+
+.dark-mode .form-check-label {
+    color: #f0f0f0;
+}
+
+.dark-mode .form-check-input {
+    background-color: #1a1a1a;
+    border-color: #444;
+}
+
+.dark-mode .form-check-input:checked {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.dark-mode .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.dark-mode .text-muted {
+    color: #b0b0b0 !important;
+}
+
+.dark-mode .text-danger {
+    color: #ff6b6b !important;
+}
+
+/* Placeholder color for dark mode */
+.dark-mode .form-control::placeholder {
+    color: #888;
+}
