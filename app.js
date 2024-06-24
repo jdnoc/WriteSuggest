@@ -8164,6 +8164,7 @@ ${str(snapshot)}`);
     deleteButton.addEventListener("click", confirmDelete);
     apiSettingsButton.addEventListener("click", openApiSettingsModal);
     saveApiSettingsButton.addEventListener("click", saveApiSettings);
+    editor.addEventListener("paste", handlePaste);
     rememberKeyCheckbox.addEventListener("change", function() {
       if (rememberKeyCheckbox.checked) {
         warningText.style.display = "block";
@@ -8178,15 +8179,27 @@ ${str(snapshot)}`);
     if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
       toggleDarkMode();
     }
+    function handlePaste(e) {
+      setTimeout(() => {
+        handleInput();
+        if (isAutoSuggestOn) {
+          clearTimeout(timeout);
+          showSuggestions();
+        }
+      }, 0);
+    }
     function handleInput() {
       clearTimeout(timeout);
       clearTimeout(progressTimeout);
       clearInterval(progressInterval);
       resetProgressBar();
       promptsContent.innerHTML = "";
-      if (isAutoSuggestOn) {
+      const text = editor.value.trim();
+      if (text.length > 0 && isAutoSuggestOn) {
         progressTimeout = setTimeout(startProgressBar, 2e3);
         timeout = setTimeout(showSuggestions, 5e3);
+      } else {
+        document.getElementById("prompts").style.display = "none";
       }
       saveTimeout = setTimeout(saveText, 1e3);
     }
@@ -8334,10 +8347,11 @@ ${str(snapshot)}`);
       });
     }
     async function showSuggestions() {
-      const text = editor.value;
-      if (text.trim().length === 0) {
+      const text = editor.value.trim();
+      if (text.length === 0) {
         promptsContent.innerHTML = "";
         resetProgressBar();
+        document.getElementById("prompts").style.display = "none";
         return;
       }
       try {
@@ -8345,10 +8359,12 @@ ${str(snapshot)}`);
         promptsContent.innerHTML = suggestions.map((suggestion) => `<div>${suggestion}</div>`).join("");
         savePrompts(suggestions);
         resetProgressBar();
+        document.getElementById("prompts").style.display = "block";
       } catch (error) {
         console.error("Error getting suggestions:", error);
         promptsContent.innerHTML = "<div>Error fetching suggestions. Please check your API settings.</div>";
         resetProgressBar();
+        document.getElementById("prompts").style.display = "block";
       }
     }
     async function getSuggestions(text) {

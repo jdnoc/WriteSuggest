@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
     deleteButton.addEventListener("click", confirmDelete);
     apiSettingsButton.addEventListener("click", openApiSettingsModal);
     saveApiSettingsButton.addEventListener("click", saveApiSettings);
+    editor.addEventListener("paste", handlePaste);
 
     // Add event listener to toggle warning text
     rememberKeyCheckbox.addEventListener("change", function () {
@@ -78,6 +79,17 @@ document.addEventListener("DOMContentLoaded", function () {
         toggleDarkMode();
     }
 
+    function handlePaste(e) {
+        setTimeout(() => {
+            handleInput();
+            // Optionally, trigger suggestions immediately after paste
+            if (isAutoSuggestOn) {
+                clearTimeout(timeout);
+                showSuggestions();
+            }
+        }, 0);
+    }
+
     function handleInput() {
         clearTimeout(timeout);
         clearTimeout(progressTimeout);
@@ -85,9 +97,14 @@ document.addEventListener("DOMContentLoaded", function () {
         resetProgressBar();
         promptsContent.innerHTML = "";
 
-        if (isAutoSuggestOn) {
+        const text = editor.value.trim();
+
+        if (text.length > 0 && isAutoSuggestOn) {
             progressTimeout = setTimeout(startProgressBar, 2000);
             timeout = setTimeout(showSuggestions, 5000);
+        } else {
+            // Hide the prompts section if there's no text
+            document.getElementById('prompts').style.display = 'none';
         }
         saveTimeout = setTimeout(saveText, 1000);
     }
@@ -256,21 +273,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function showSuggestions() {
-        const text = editor.value;
-        if (text.trim().length === 0) {
+        const text = editor.value.trim();
+        if (text.length === 0) {
             promptsContent.innerHTML = "";
             resetProgressBar();
+            document.getElementById('prompts').style.display = 'none';
             return;
         }
+
         try {
             const suggestions = await getSuggestions(text);
             promptsContent.innerHTML = suggestions.map(suggestion => `<div>${suggestion}</div>`).join('');
             savePrompts(suggestions);
             resetProgressBar();
+            document.getElementById('prompts').style.display = 'block';
         } catch (error) {
             console.error('Error getting suggestions:', error);
             promptsContent.innerHTML = '<div>Error fetching suggestions. Please check your API settings.</div>';
             resetProgressBar();
+            document.getElementById('prompts').style.display = 'block';
         }
     }
 

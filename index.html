@@ -4,15 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WriteSuggest</title>
+    <title>WriteSuggest - AI-Powered Writing Assistant</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/write-suggest.png">
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="WriteSuggest - AI-Powered Writing Assistant">
+    <meta name="description"
+        content="Enhance your writing with AI-powered suggestions. WriteSuggest helps you overcome writer's block and improve your content effortlessly.">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://your-website-url.com/">
+    <meta property="og:title" content="WriteSuggest - AI-Powered Writing Assistant">
+    <meta property="og:description"
+        content="Enhance your writing with AI-powered suggestions. WriteSuggest helps you overcome writer's block and improve your content effortlessly.">
+    <meta property="og:image" content="https://your-website-url.com/write-suggest.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://your-website-url.com/">
+    <meta property="twitter:title" content="WriteSuggest - AI-Powered Writing Assistant">
+    <meta property="twitter:description"
+        content="Enhance your writing with AI-powered suggestions. WriteSuggest helps you overcome writer's block and improve your content effortlessly.">
+    <meta property="twitter:image" content="https://your-website-url.com/write-suggest.png">
+
+    <!-- Existing stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="bootstrap.min.css">
     <link rel="stylesheet" href="bootstrap-icons.css">
 </head>
 
 <body>
-    <div class="container d-flex justify-content-center align-items-center min-vh-100">
-        <div class="paper position-relative">
+    <div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+        <div class="paper position-relative mb-3">
             <textarea id="editor" class="form-control" placeholder="Start writing here..."></textarea>
             <div id="preview" class="d-none"></div>
             <div class="position-absolute top-0 end-0 m-2">
@@ -31,13 +57,13 @@
                 <button id="deleteButton" class="btn btn-danger btn-sm" title="Delete Text"><i
                         class="bi bi-trash"></i></button>
             </div>
-            <div id="prompts" class="position-absolute bottom-0 start-0 end-0">
-                <div id="progressBar" class="progress d-none">
-                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
-                        aria-valuemax="100"></div>
-                </div>
-                <div id="promptsContent"></div>
+        </div>
+        <div id="prompts" class="w-100 mt-3">
+            <div id="progressBar" class="progress d-none">
+                <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
+                    aria-valuemax="100"></div>
             </div>
+            <div id="promptsContent"></div>
         </div>
     </div>
 
