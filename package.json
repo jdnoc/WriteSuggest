@@ -8,7 +8,7 @@
         "build": "node esbuild.js",
         "build:prod": "NODE_ENV=production node esbuild.js",
         "watch": "nodemon --watch src --ext js,html,css --exec \"npm run build\"",
-        "serve": "nodemon --watch . server.js",
+        "serve": "nodemon --watch public server.js",
         "dev": "concurrently \"npm run watch\" \"npm run serve\""
     },
     "dependencies": {
