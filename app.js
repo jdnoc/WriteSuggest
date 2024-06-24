@@ -8193,13 +8193,12 @@ ${str(snapshot)}`);
       clearTimeout(progressTimeout);
       clearInterval(progressInterval);
       resetProgressBar();
-      promptsContent.innerHTML = "";
       const text = editor.value.trim();
       if (text.length > 0 && isAutoSuggestOn) {
         progressTimeout = setTimeout(startProgressBar, 2e3);
         timeout = setTimeout(showSuggestions, 5e3);
       } else {
-        document.getElementById("prompts").style.display = "none";
+        promptsContent.innerHTML = "";
       }
       saveTimeout = setTimeout(saveText, 1e3);
     }
@@ -8303,7 +8302,6 @@ ${str(snapshot)}`);
         preview.innerHTML = marked.parse(editor.value);
         editor.classList.add("d-none");
         preview.classList.remove("d-none");
-        promptsDiv.style.display = "none";
         toggleButton.innerHTML = '<i class="bi bi-pencil"></i>';
         toggleButton.title = "Edit";
       } else {
@@ -8359,12 +8357,10 @@ ${str(snapshot)}`);
         promptsContent.innerHTML = suggestions.map((suggestion) => `<div>${suggestion}</div>`).join("");
         savePrompts(suggestions);
         resetProgressBar();
-        document.getElementById("prompts").style.display = "block";
       } catch (error) {
         console.error("Error getting suggestions:", error);
         promptsContent.innerHTML = "<div>Error fetching suggestions. Please check your API settings.</div>";
         resetProgressBar();
-        document.getElementById("prompts").style.display = "block";
       }
     }
     async function getSuggestions(text) {

@@ -95,7 +95,6 @@ document.addEventListener("DOMContentLoaded", function () {
         clearTimeout(progressTimeout);
         clearInterval(progressInterval);
         resetProgressBar();
-        promptsContent.innerHTML = "";
 
         const text = editor.value.trim();
 
@@ -103,8 +102,7 @@ document.addEventListener("DOMContentLoaded", function () {
             progressTimeout = setTimeout(startProgressBar, 2000);
             timeout = setTimeout(showSuggestions, 5000);
         } else {
-            // Hide the prompts section if there's no text
-            document.getElementById('prompts').style.display = 'none';
+            promptsContent.innerHTML = "";
         }
         saveTimeout = setTimeout(saveText, 1000);
     }
@@ -224,7 +222,7 @@ document.addEventListener("DOMContentLoaded", function () {
             preview.innerHTML = marked.parse(editor.value);
             editor.classList.add("d-none");
             preview.classList.remove("d-none");
-            promptsDiv.style.display = 'none';
+            // promptsDiv.style.display = 'none';
             toggleButton.innerHTML = '<i class="bi bi-pencil"></i>';
             toggleButton.title = "Edit";
         } else {
@@ -286,12 +284,12 @@ document.addEventListener("DOMContentLoaded", function () {
             promptsContent.innerHTML = suggestions.map(suggestion => `<div>${suggestion}</div>`).join('');
             savePrompts(suggestions);
             resetProgressBar();
-            document.getElementById('prompts').style.display = 'block';
+            // document.getElementById('prompts').style.display = 'block';
         } catch (error) {
             console.error('Error getting suggestions:', error);
             promptsContent.innerHTML = '<div>Error fetching suggestions. Please check your API settings.</div>';
             resetProgressBar();
-            document.getElementById('prompts').style.display = 'block';
+            // document.getElementById('prompts').style.display = 'block';
         }
     }
 
