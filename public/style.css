@@ -1,0 +1,45 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #f9f9f9;
+}
+
+.container {
+    height: 100%;
+}
+
+.paper {
+    width: 100%;
+    max-width: 816px; /* 8.5 inches in pixels (96 dpi * 8.5 inches) */
+    height: 100%;
+    padding: 1rem;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+textarea {
+    flex: 1;
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    padding: 1rem;
+    box-sizing: border-box;
+    background-color: transparent;
+}
+
+#prompts {
+    color: lightgray;
+    font-style: italic;
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+}

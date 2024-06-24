@@ -1,0 +1,28 @@
+{
+    "name": "write-suggest",
+    "version": "1.0.0",
+    "description": "AI Writing Assistant Web App",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "build": "node esbuild.js",
+        "build:prod": "NODE_ENV=production node esbuild.js",
+        "watch": "nodemon --watch src --ext js,html,css --exec \"npm run build\"",
+        "serve": "nodemon --watch public server.js",
+        "dev": "concurrently \"npm run watch\" \"npm run serve\""
+    },
+    "dependencies": {
+        "bootstrap": "^5.1.0",
+        "bootstrap-icons": "^1.11.3",
+        "express": "^4.17.1",
+        "localforage": "^1.10.0",
+        "marked": "^4.0.0",
+        "openai": "^4.52.0"
+    },
+    "devDependencies": {
+        "concurrently": "^6.2.1",
+        "esbuild": "^0.14.0",
+        "fs-extra": "^11.2.0",
+        "nodemon": "^2.0.15"
+    }
+}
