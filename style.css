@@ -2,7 +2,7 @@ body, html {
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: #f9f9f9;
+    background-color: #fff;
 }
 
 .container {
@@ -11,35 +11,103 @@ body, html {
 
 .paper {
     width: 100%;
-    max-width: 816px; /* 8.5 inches in pixels (96 dpi * 8.5 inches) */
-    height: 100%;
+    max-width: 816px;
+    height: 100vh;
     padding: 1rem;
     background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
+    overflow: hidden;
     position: relative;
 }
 
-textarea {
-    flex: 1;
+#editor, #preview {
     width: 100%;
+    height: 100%;
     border: none;
     outline: none;
     resize: none;
     font-size: 16px;
     font-family: Arial, sans-serif;
-    padding: 1rem;
+    padding: 3rem 1rem 8rem 1rem;
     box-sizing: border-box;
     background-color: transparent;
 }
 
+#editor:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#preview {
+    overflow: auto;
+}
+
+#toggleButton {
+    z-index: 1000;
+}
+
 #prompts {
-    color: lightgray;
-    font-style: italic;
-    position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    right: 1rem;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 1rem;
+    max-height: 30%;
+    overflow-y: auto;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+#prompts div {
+    margin-bottom: 0.5rem;
+    color: #6c757d;
+}
+
+/* Dark mode styles */
+.dark-mode {
+    background-color: #333;
+    color: #fff;
+}
+
+.dark-mode .paper {
+    background-color: #333;
+}
+
+.dark-mode #editor, .dark-mode #preview {
+    color: #fff;
+    background-color: #333;
+}
+
+.dark-mode #editor::placeholder {
+    color: #aaa;
+}
+
+.dark-mode #prompts {
+    background-color: rgba(51, 51, 51, 0.9);
+}
+
+.dark-mode #prompts div {
+    color: #ddd;
+}
+
+/* Placeholder styles for light mode */
+#editor::placeholder {
+    color: #6c757d;
+}
+
+#progressBar {
+    height: 3px;
+    background-color: #f0f0f0;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+#progressBar .progress-bar {
+    background-color: #007bff;
+    transition: width 0.1s linear;
+    height: 100%;
+}
+
+/* Ensure the progress bar is visible in dark mode */
+.dark-mode #progressBar {
+    background-color: #444;
+}
+
+.dark-mode #progressBar .progress-bar {
+    background-color: #0056b3;
 }

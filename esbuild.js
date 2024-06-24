@@ -7,7 +7,7 @@ async function build() {
     await esbuild.build({
         entryPoints: ['src/app.js'],
         bundle: true,
-        outfile: 'public/dist/app.js',
+        outfile: 'app.js',
         minify: process.env.NODE_ENV === 'production',
         sourcemap: process.env.NODE_ENV !== 'production',
     });
@@ -16,7 +16,7 @@ async function build() {
     // Copy HTML
     fs.copySync(
         path.resolve(__dirname, 'src/index.html'),
-        path.resolve(__dirname, 'public/index.html'),
+        path.resolve(__dirname, 'index.html'),
         { overwrite: true }
     );
     console.log('HTML copied successfully');
@@ -24,7 +24,7 @@ async function build() {
     // Copy CSS
     fs.copySync(
         path.resolve(__dirname, 'src/style.css'),
-        path.resolve(__dirname, 'public/dist/style.css'),
+        path.resolve(__dirname, 'style.css'),
         { overwrite: true }
     );
     console.log('CSS copied successfully');
@@ -32,7 +32,7 @@ async function build() {
     // Copy Bootstrap CSS
     fs.copySync(
         path.resolve(__dirname, 'node_modules/bootstrap/dist/css/bootstrap.min.css'),
-        path.resolve(__dirname, 'public/dist/bootstrap.min.css'),
+        path.resolve(__dirname, 'bootstrap.min.css'),
         { overwrite: true }
     );
     console.log('Bootstrap CSS copied successfully');
@@ -40,7 +40,7 @@ async function build() {
     // Copy Bootstrap JS
     fs.copySync(
         path.resolve(__dirname, 'node_modules/bootstrap/dist/js/bootstrap.bundle.min.js'),
-        path.resolve(__dirname, 'public/dist/bootstrap.bundle.min.js'),
+        path.resolve(__dirname, 'bootstrap.bundle.min.js'),
         { overwrite: true }
     );
     console.log('Bootstrap JS copied successfully');
@@ -48,7 +48,7 @@ async function build() {
     // Copy Bootstrap Icons CSS
     fs.copySync(
         path.resolve(__dirname, 'node_modules/bootstrap-icons/font/bootstrap-icons.css'),
-        path.resolve(__dirname, 'public/dist/bootstrap-icons.css'),
+        path.resolve(__dirname, 'bootstrap-icons.css'),
         { overwrite: true }
     );
     console.log('Bootstrap Icons CSS copied successfully');
@@ -56,7 +56,7 @@ async function build() {
     // Copy Bootstrap Icons fonts
     fs.copySync(
         path.resolve(__dirname, 'node_modules/bootstrap-icons/font/fonts'),
-        path.resolve(__dirname, 'public/dist/fonts'),
+        path.resolve(__dirname, 'fonts'),
         { overwrite: true }
     );
     console.log('Bootstrap Icons fonts copied successfully');
