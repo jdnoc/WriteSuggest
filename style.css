@@ -3,6 +3,7 @@ body, html {
     padding: 0;
     height: 100%;
     background-color: #fff;
+    transition: background-color 0.3s ease;
 }
 
 .container {
@@ -13,12 +14,13 @@ body, html {
 .paper {
     width: 100%;
     max-width: 816px;
-    height: 70vh;  /* Adjust this value as needed */
+    height: 70vh; /* Adjust this value as needed */
     padding: 1rem;
     background-color: #fff;
     overflow: hidden;
     position: relative;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 #editor, #preview {
@@ -33,6 +35,8 @@ body, html {
     box-sizing: border-box;
     background-color: transparent;
     overflow-y: auto;
+    color: #333;
+    transition: color 0.3s ease;
 }
 
 #editor:focus {
@@ -44,9 +48,10 @@ body, html {
     max-width: 816px;
     background-color: rgba(255, 255, 255, 0.9);
     padding: 1rem;
-    max-height: 20vh;  /* Adjust this value as needed */
+    max-height: 20vh; /* Adjust this value as needed */
     overflow-y: auto;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 #promptsContent {
@@ -56,9 +61,8 @@ body, html {
 #prompts div {
     margin-bottom: 0.5rem;
     color: #6c757d;
+    transition: color 0.3s ease;
 }
-
-/* Dark mode styles remain the same */
 
 #progressBar {
     height: 3px;
@@ -69,15 +73,70 @@ body, html {
 
 #progressBar .progress-bar {
     background-color: #007bff;
-    transition: width 0.1s linear;
+    transition: width 0.1s linear, background-color 0.3s ease;
     height: 100%;
 }
 
-/* Ensure the progress bar is visible in dark mode */
+/* Dark mode styles */
+.dark-mode {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+}
+
+.dark-mode .paper {
+    background-color: #2c2c2c;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode #editor, .dark-mode #preview {
+    color: #f0f0f0;
+}
+
+.dark-mode #prompts {
+    background-color: rgba(44, 44, 44, 0.9);
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode #prompts div {
+    color: #b0b0b0;
+}
+
 .dark-mode #progressBar {
     background-color: #444;
 }
 
 .dark-mode #progressBar .progress-bar {
     background-color: #0056b3;
+}
+
+/* Additional styles for better contrast in dark mode */
+.dark-mode .btn-primary {
+    background-color: #0056b3;
+    border-color: #004085;
+}
+
+.dark-mode .btn-secondary {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.dark-mode .btn-success {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.dark-mode .btn-danger {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.dark-mode .btn-warning {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+.dark-mode .btn-info {
+    background-color: #138496;
+    border-color: #117a8b;
 }
