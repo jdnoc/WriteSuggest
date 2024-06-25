@@ -36,7 +36,6 @@
     <link rel="stylesheet" href="bootstrap-icons.css">
 </head>
 
-
 <body class="d-flex flex-column min-vh-100">
     <div class="container flex-grow-1 d-flex flex-column justify-content-center">
         <div class="row justify-content-center">
@@ -45,9 +44,8 @@
                     <div class="button-container text-center mb-2">
                         <button id="autoSuggestToggle" class="btn btn-warning btn-sm me-1"
                             title="Turn Off Auto Suggestions"><i class="bi bi-stop-circle"></i></button>
-                        <button id="refreshPrompts" class="btn btn-primary btn-sm me-1" title="Refresh Prompts">
-                            <i class="bi bi-arrow-clockwise"></i>
-                        </button>
+                        <button id="refreshPrompts" class="btn btn-primary btn-sm me-1" title="Refresh Prompts"><i
+                                class="bi bi-arrow-clockwise"></i></button>
                         <button id="darkModeToggle" class="btn btn-secondary btn-sm me-1" title="Toggle Dark Mode"><i
                                 class="bi bi-moon"></i></button>
                         <button id="toggleButton" class="btn btn-primary btn-sm me-1" title="Toggle Preview"><i
@@ -67,6 +65,9 @@
                 <div id="prompts" class="w-100 mb-3">
                     <div id="promptsContent"></div>
                 </div>
+                <div id="modelNameDisplay" class="w-100 mb-3">
+                    Using model: <span id="modelName">N/A</span>
+                </div>
             </div>
         </div>
     </div>
@@ -80,18 +81,87 @@
                 </div>
                 <div class="modal-body">
                     <select id="apiService" class="form-select mb-3">
-                        <option value="openai">OpenAI</option>
+                        <option value="openai">OpenAI API</option>
+                        <option value="webllm">Web LLM (Browser-based)</option>
                     </select>
-                    <input type="password" id="apiKey" class="form-control mb-3" placeholder="Enter API Key">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="rememberKey">
-                        <label class="form-check-label" for="rememberKey">
-                            Remember API key
-                        </label>
+                    <select id="modelSelection" class="form-select mb-3" style="display: none;">
+                        <option value="Llama-3-8B-Instruct-q4f32_1-MLC-1k">Llama-3-8B-Instruct-q4f32_1-MLC (low power)
+                        </option>
+                        <option value="Llama-3-8B-Instruct-q4f16_1-MLC-1k">Llama-3-8B-Instruct-q4f16_1-MLC (low power)
+                        </option>
+                        <option value="Llama-3-8B-Instruct-q4f32_1-MLC">Llama-3-8B-Instruct-q4f32_1-MLC (high power)
+                        </option>
+                        <option value="Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct-q4f16_1-MLC (high power)
+                        </option>
+                        <option value="Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC">Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC (high
+                            power)</option>
+                        <option value="Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC">Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC (high
+                            power)</option>
+                        <option value="Hermes-2-Pro-Mistral-7B-q4f16_1-MLC">Hermes-2-Pro-Mistral-7B-q4f16_1-MLC (high
+                            power)</option>
+                        <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k-instruct-q4f16_1-MLC (high
+                            power)</option>
+                        <option value="Phi-3-mini-4k-instruct-q4f32_1-MLC">Phi-3-mini-4k-instruct-q4f32_1-MLC (high
+                            power)</option>
+                        <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC-1k">Phi-3-mini-4k-instruct-q4f16_1-MLC (low
+                            power)</option>
+                        <option value="Phi-3-mini-4k-instruct-q4f32_1-MLC-1k">Phi-3-mini-4k-instruct-q4f32_1-MLC (low
+                            power)</option>
+                        <option value="Mistral-7B-Instruct-v0.3-q4f16_1-MLC">Mistral-7B-Instruct-v0.3-q4f16_1-MLC (high
+                            power)</option>
+                        <option value="Mistral-7B-Instruct-v0.3-q4f32_1-MLC">Mistral-7B-Instruct-v0.3-q4f32_1-MLC (high
+                            power)</option>
+                        <option value="gemma-2b-it-q4f16_1-MLC">gemma-2b-it-q4f16_1-MLC (high power)</option>
+                        <option value="gemma-2b-it-q4f32_1-MLC">gemma-2b-it-q4f32_1-MLC (high power)</option>
+                        <option value="gemma-2b-it-q4f16_1-MLC-1k">gemma-2b-it-q4f16_1-MLC (low power)</option>
+                        <option value="gemma-2b-it-q4f32_1-MLC-1k">gemma-2b-it-q4f32_1-MLC (low power)</option>
+                        <option value="Qwen2-0.5B-Instruct-q0f16-MLC">Qwen2-0.5B-Instruct-q0f16-MLC (low power)</option>
+                        <option value="Qwen2-0.5B-Instruct-q0f32-MLC">Qwen2-0.5B-Instruct-q0f32-MLC (low power)</option>
+                        <option value="Qwen2-1.5B-Instruct-q4f16_1-MLC">Qwen2-1.5B-Instruct-q4f16_1-MLC (low power)
+                        </option>
+                        <option value="Qwen2-1.5B-Instruct-q4f32_1-MLC">Qwen2-1.5B-Instruct-q4f32_1-MLC (low power)
+                        </option>
+                        <option value="Qwen2-7B-Instruct-q4f16_1-MLC">Qwen2-7B-Instruct-q4f16_1-MLC (high power)
+                        </option>
+                        <option value="Qwen2-7B-Instruct-q4f32_1-MLC">Qwen2-7B-Instruct-q4f32_1-MLC (high power)
+                        </option>
+                        <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC">stablelm-2-zephyr-1_6b-q4f16_1-MLC (high
+                            power)</option>
+                        <option value="stablelm-2-zephyr-1_6b-q4f32_1-MLC">stablelm-2-zephyr-1_6b-q4f32_1-MLC (high
+                            power)</option>
+                        <option value="stablelm-2-zephyr-1_6b-q4f16_1-MLC-1k">stablelm-2-zephyr-1_6b-q4f16_1-MLC (low
+                            power)</option>
+                        <option value="stablelm-2-zephyr-1_6b-q4f32_1-MLC-1k">stablelm-2-zephyr-1_6b-q4f32_1-MLC (low
+                            power)</option>
+                        <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC
+                            (high power)</option>
+                        <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC
+                            (high power)</option>
+                        <option value="RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k">
+                            RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC (low power)</option>
+                        <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k">
+                            RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC (low power)</option>
+                        <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC (low
+                            power)</option>
+                        <option value="TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC (low
+                            power)</option>
+                        <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k">TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC
+                            (low power)</option>
+                        <option value="TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k">TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC
+                            (low power)</option>
+                    </select>
+                    <div id="apiKeyDiv">
+                        <input type="password" id="apiKey" class="form-control mb-3" placeholder="Enter API Key">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rememberKey">
+                            <label class="form-check-label" for="rememberKey">
+                                Remember API key
+                            </label>
+                        </div>
+                        <p id="warningText" class="text-muted mt-2 ms-3" style="display: none;">
+                            Your key is encrypted, but be cautious of browser security risks.
+                        </p>
                     </div>
-                    <p id="warningText" class="text-muted mt-2 ms-3" style="display: none;">
-                        Your key is encrypted, but be cautious of browser security risks.
-                    </p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -106,7 +176,7 @@
     </script>
 
     <script src="bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
     <script defer data-domain="jdnoc.com" src="https://plausible.io/js/script.js"></script>
 </body>
 

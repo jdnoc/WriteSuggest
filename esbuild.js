@@ -3,13 +3,15 @@ const fs = require('fs-extra');
 const path = require('path');
 
 async function build() {
-    // Build JS
+    // Build JS and SW
     await esbuild.build({
         entryPoints: ['src/app.js'],
         bundle: true,
         outfile: 'app.js',
         minify: process.env.NODE_ENV === 'production',
         sourcemap: process.env.NODE_ENV !== 'production',
+        format: 'esm',
+        target: ['es2020'],
     });
     console.log('JS built successfully');
 

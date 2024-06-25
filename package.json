@@ -12,6 +12,7 @@
         "dev": "concurrently \"npm run watch\" \"npm run serve\""
     },
     "dependencies": {
+        "@mlc-ai/web-llm": "^0.2.46",
         "bootstrap": "^5.1.0",
         "bootstrap-icons": "^1.11.3",
         "express": "^4.17.1",

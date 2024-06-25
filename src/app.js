@@ -1,10 +1,16 @@
 import { marked } from 'marked';
 import localforage from 'localforage';
 import OpenAI from 'openai';
+import { CreateMLCEngine } from '@mlc-ai/web-llm';
 
 document.addEventListener("DOMContentLoaded", function () {
 
     let openai;
+    let chat;
+    let engine;
+
+    let currentApiService = 'webllm'; // Default to webllm
+    let isWebLLMLoading = false;
 
     const editor = document.getElementById("editor");
     const preview = document.getElementById("preview");
@@ -22,6 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const rememberKeyCheckbox = document.getElementById("rememberKey");
     const warningText = document.getElementById("warningText");
     const refreshPromptsButton = document.getElementById("refreshPrompts");
+    const apiServiceSelect = document.getElementById("apiService");
 
     // Initialize the modal
     const modalElement = document.getElementById('apiSettingsModal');
@@ -32,6 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let isDarkMode = false;
     let isAutoSuggestOn = true;
     let isApiKeyStored = false;
+    let saveTimeout = null;
 
     // Initialize LocalForage
     localforage.config({
@@ -43,6 +51,36 @@ document.addEventListener("DOMContentLoaded", function () {
     loadApiSettings();
     loadToggleSettings();
     loadSavedPrompts();
+    sortModelOptions();
+    markLoadedModels();
+    updateModelNameDisplay();
+
+    function updateModelNameDisplay() {
+        const modelNameDisplay = document.getElementById('modelName');
+        if (currentApiService === 'webllm') {
+            const selectedModel = document.getElementById('modelSelection').value;
+            if (isWebLLMLoading) {
+                modelNameDisplay.textContent = `Loading: ${selectedModel}`;
+            } else {
+                modelNameDisplay.textContent = selectedModel;
+            }
+        } else if (currentApiService === 'openai') {
+            modelNameDisplay.textContent = "Open AI";
+        } else {
+            modelNameDisplay.textContent = "N/A";
+        }
+    }
+
+
+    function sortModelOptions() {
+        const select = document.getElementById('modelSelection');
+        const options = Array.from(select.options);
+
+        options.sort((a, b) => a.text.localeCompare(b.text));
+
+        select.innerHTML = '';
+        options.forEach(option => select.add(option));
+    }
 
     editor.addEventListener("input", handleInput);
     autoSuggestToggle.addEventListener("click", toggleAutoSuggest);
@@ -57,6 +95,44 @@ document.addEventListener("DOMContentLoaded", function () {
     apiKeyInput.addEventListener('focus', handleApiKeyInputFocus);
     apiKeyInput.addEventListener('blur', handleApiKeyInputBlur);
     refreshPromptsButton.addEventListener("click", instantRefreshPrompts);
+    apiServiceSelect.addEventListener('change', async function () {
+        currentApiService = this.value;
+        const webLlmSelect = document.getElementById('modelSelection');
+        const apiKeyInputDiv = document.querySelector('#apiKey').parentElement;
+        const rememberKeyCheckboxDiv = document.querySelector('#rememberKey').parentElement;
+
+        if (currentApiService === 'webllm') {
+            webLlmSelect.style.display = 'block';
+            apiKeyInputDiv.style.display = 'none';
+            rememberKeyCheckboxDiv.style.display = 'none';
+            warningText.style.display = 'none';
+        } else {
+            webLlmSelect.style.display = 'none';
+            apiKeyInputDiv.style.display = 'block';
+            rememberKeyCheckboxDiv.style.display = 'block';
+            warningText.style.display = rememberKeyCheckbox.checked ? 'block' : 'none';
+
+            // Load API key from IndexedDB if it exists
+            const encryptedKey = await localforage.getItem('encryptedApiKey');
+            if (encryptedKey) {
+                const apiKey = await decryptApiKey(encryptedKey);
+                apiKeyInput.value = '••••••••••••••••';
+                apiKeyInput.type = 'text';
+                openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+                isApiKeyStored = true;
+            } else {
+                apiKeyInput.value = '';
+                apiKeyInput.type = 'password';
+                isApiKeyStored = false;
+            }
+        }
+
+        updateModelNameDisplay(); // Update the display to reflect the current API service
+    });
+
+    modelSelection.addEventListener('change', function () {
+        updateModelNameDisplay(); // Add this line
+    });
 
     // Add event listener to toggle warning text
     rememberKeyCheckbox.addEventListener("change", function () {
@@ -81,6 +157,13 @@ document.addEventListener("DOMContentLoaded", function () {
         toggleDarkMode();
     }
 
+    editor.addEventListener("keydown", function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            instantRefreshPrompts();
+        }
+    });
+
     function handlePaste(e) {
         setTimeout(() => {
             handleInput();
@@ -98,23 +181,27 @@ document.addEventListener("DOMContentLoaded", function () {
         const text = editor.value.trim();
 
         if (text.length > 0 && isAutoSuggestOn) {
-            timeout = setTimeout(() => {
-                getSuggestions(text).then(suggestions => {
-                    setTimeout(() => {
-                        displaySuggestions(suggestions);
-                    }, 2000); // Display after 2 more seconds (5 seconds total)
-                });
-            }, 3000); // Start getting suggestions after 3 seconds
+            if (currentApiService === 'webllm' && isWebLLMLoading) {
+                promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading Web LLM model... Please wait.</div></div>';
+            } else {
+                timeout = setTimeout(() => {
+                    getSuggestions(text).then(suggestions => {
+                        setTimeout(() => {
+                            displaySuggestions(suggestions);
+                        }, 2000);
+                    });
+                }, 3000);
+            }
         } else {
             promptsContent.innerHTML = "";
         }
         saveTimeout = setTimeout(saveText, 1000);
 
-        // Reset the refresh button icon
         refreshPromptsButton.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
     }
 
     function displaySuggestions(suggestions) {
+        // console.log('Suggestions:', suggestions);
         promptsContent.innerHTML = suggestions.map(suggestion => `<div class="suggestion">${suggestion}</div>`).join('');
         savePrompts(suggestions);
 
@@ -167,6 +254,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 isAutoSuggestOn = autoSuggest;
                 autoSuggestToggle.innerHTML = isAutoSuggestOn ? '<i class="bi bi-stop-circle"></i>' : '<i class="bi bi-magic"></i>';
                 autoSuggestToggle.title = isAutoSuggestOn ? "Turn Off Auto Suggestions" : "Turn On Auto Suggestions";
+
+                if (!isAutoSuggestOn) {
+                    promptsContent.innerHTML = "";
+                }
             }
         } catch (err) {
             console.error('Error loading toggle settings:', err);
@@ -214,10 +305,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function instantRefreshPrompts() {
-        clearTimeout(timeout); // Clear any pending timeouts
+        clearTimeout(timeout);
         const text = editor.value.trim();
         if (text.length > 0) {
-            showSuggestions();
+            if (currentApiService === 'webllm' && isWebLLMLoading) {
+                promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading Web LLM model... Please wait.</div></div>';
+            } else {
+                showSuggestions();
+            }
         } else {
             promptsContent.innerHTML = "<div>Please start writing to get suggestions.</div>";
         }
@@ -296,31 +391,51 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function getSuggestions(text) {
-        if (!openai) {
+        if (currentApiService === 'webllm') {
+            if (isWebLLMLoading) {
+                return ["Web LLM is still loading. Please wait..."];
+            }
+            if (!engine) {
+                await initializeWebLLM();
+            }
+            if (!engine) {
+                return ["Failed to initialize Web LLM. Please try again."];
+            }
+        } else if (!openai) {
             return ["Please set up your OpenAI API key in the settings."];
         }
 
-        // Extract the most recent part of the text
-        const recentText = text.slice(-500); // Adjust the number of characters as needed
+        const recentText = text.slice(-500);
+        const messages = [
+            {
+                role: "system",
+                content: "You are an AI writing assistant. Your task is to provide different short and simple prompts or questions to help the user continue their writing. Each suggestion should be no more than one sentence and easy to understand. Respond with a JSON array of strings without any additional formatting or code fences."
+            },
+            {
+                role: "user",
+                content: `Here is what I have written so far: "${text}".\n\nBased on the recent part: "${recentText}", please provide short and simple suggestions to help me continue writing as a JSON array of strings.`
+            }
+        ];
 
         try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are an AI writing assistant. Your task is to provide three different short and simple prompts or questions to help the user continue their writing. Each suggestion should be no more than one sentence and easy to understand. Respond with a JSON array of strings without any additional formatting or code fences."
-                    },
-                    {
-                        role: "user",
-                        content: `Here is what I have written so far: "${text}".\n\nBased on the recent part: "${recentText}", please provide three short and simple suggestions to help me continue writing as a JSON array of strings.`
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 100,
-            });
+            let response;
+            if (currentApiService === 'webllm') {
+                response = await engine.chat.completions.create({
+                    messages,
+                    temperature: 0.7,
+                    max_tokens: 1000,
+                });
+            } else {
+                response = await openai.chat.completions.create({
+                    model: "gpt-3.5-turbo",
+                    messages,
+                    temperature: 0.7,
+                    max_tokens: 1000,
+                });
+            }
 
             let suggestionsContent = response.choices[0].message.content.trim();
+            // console.log('Suggestions:', suggestionsContent);
 
             // Remove code fences if they are present
             if (suggestionsContent.startsWith('```') && suggestionsContent.endsWith('```')) {
@@ -330,13 +445,115 @@ document.addEventListener("DOMContentLoaded", function () {
             // Remove any leading or trailing non-JSON characters
             suggestionsContent = suggestionsContent.replace(/^[^\[]*/, '').replace(/[^\]]*$/, '');
 
+            // Ensure proper JSON format by checking for missing closing bracket
+            if (suggestionsContent && !suggestionsContent.endsWith(']')) {
+                suggestionsContent += ']';
+            }
+
             // Parse the response content as a JSON array
-            const suggestions = JSON.parse(suggestionsContent);
+            let suggestions;
+            try {
+                suggestions = JSON.parse(suggestionsContent);
+            } catch (parseError) {
+                console.error('Error parsing response:', parseError);
+                // If parsing fails, use the entire response as a suggestion
+                suggestions = [suggestionsContent];
+            }
 
             return suggestions;
         } catch (error) {
-            console.error('Error getting suggestions:', error);
+            console.error(`Error getting suggestions from ${currentApiService}:`, error);
             return [`Error: ${error.message}`];
+        }
+    }
+
+    const modelList = {
+        "Llama-3-8B-Instruct-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+        "Llama-3-8B-Instruct-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
+        "Llama-3-8B-Instruct-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+        "Llama-3-8B-Instruct-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
+        "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+        "Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
+        "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+        "Phi-3-mini-4k-instruct-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+        "Phi-3-mini-4k-instruct-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+        "Phi-3-mini-4k-instruct-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+        "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+        "Mistral-7B-Instruct-v0.3-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+        "Mistral-7B-Instruct-v0.3-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
+        "gemma-2b-it-q4f16_1-MLC": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+        "gemma-2b-it-q4f32_1-MLC": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+        "gemma-2b-it-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+        "gemma-2b-it-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+        "Qwen2-0.5B-Instruct-q0f16-MLC": "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC",
+        "Qwen2-0.5B-Instruct-q0f32-MLC": "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC",
+        "Qwen2-1.5B-Instruct-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC",
+        "Qwen2-1.5B-Instruct-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f32_1-MLC",
+        "Qwen2-7B-Instruct-q4f16_1-MLC": "https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f16_1-MLC",
+        "Qwen2-7B-Instruct-q4f32_1-MLC": "https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f32_1-MLC",
+        "stablelm-2-zephyr-1_6b-q4f16_1-MLC": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+        "stablelm-2-zephyr-1_6b-q4f32_1-MLC": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+        "stablelm-2-zephyr-1_6b-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+        "stablelm-2-zephyr-1_6b-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+        "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+        "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+        "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+        "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+        "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+        "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
+        "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+        "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC"
+    };
+
+    async function initializeWebLLM(modelId = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC") {
+        isWebLLMLoading = true;
+        updateModelNameDisplay(); // Add this line to show the loading status
+
+        promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2" id="loadingText">Loading Web LLM model... This may take a few minutes.</div></div>';
+
+        try {
+            const modelUrl = modelList[modelId];
+            if (!modelUrl) {
+                throw new Error(`No URL found for model ID "${modelId}"`);
+            }
+
+            const initProgressCallback = (initProgress) => {
+                // console.log(initProgress);
+                const loadingText = document.getElementById('loadingText');
+                if (loadingText) {
+                    loadingText.innerHTML = `Loading Web LLM model... ${Math.round(initProgress.progress * 100)}% complete.`;
+                }
+            };
+
+            console.log(`Loading model ID: ${modelId}`);
+            console.log(`Model URL: ${modelUrl}`);
+
+            engine = await CreateMLCEngine(
+                modelId,
+                {
+                    initProgressCallback: initProgressCallback,
+                    modelUrl: modelUrl
+                }
+            );
+
+            promptsContent.innerHTML = '<div class="text-center text-success">Web LLM model loaded successfully!</div>';
+
+            // Store the loaded model
+            const storedModels = await localforage.getItem('storedModels') || [];
+            if (!storedModels.includes(modelId)) {
+                storedModels.push(modelId);
+                await localforage.setItem('storedModels', storedModels);
+                markLoadedModels(); // Update the selection list
+            }
+
+            updateModelNameDisplay(); // Add this line to update the display after loading
+        } catch (error) {
+            console.error('Error loading Web LLM:', error);
+            promptsContent.innerHTML = '<div class="text-center text-danger">Error loading Web LLM. Please try again.</div>';
+            engine = null;
+        } finally {
+            isWebLLMLoading = false;
+            updateModelNameDisplay(); // Add this line to ensure the loading status is cleared
         }
     }
 
@@ -344,54 +561,99 @@ document.addEventListener("DOMContentLoaded", function () {
         const modalElement = document.getElementById('apiSettingsModal');
         const modal = new bootstrap.Modal(modalElement);
 
-        // Show dummy text if a key is stored
-        if (isApiKeyStored) {
-            apiKeyInput.value = '••••••••••••••••';
-            apiKeyInput.type = 'text';
-        } else {
-            apiKeyInput.value = '';
-            apiKeyInput.type = 'password';
-        }
+        apiServiceSelect.value = currentApiService;
 
+        if (currentApiService === 'openai') {
+            if (isApiKeyStored) {
+                apiKeyInput.value = '••••••••••••••••';
+                apiKeyInput.type = 'text';
+            } else {
+                apiKeyInput.value = '';
+                apiKeyInput.type = 'password';
+            }
+        }
         modal.show();
     }
 
     async function saveApiSettings() {
-        const apiKey = apiKeyInput.value;
-        const rememberKey = rememberKeyCheckbox.checked;
-
-        if (apiKey && apiKey !== '••••••••••••••••') {
-            openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
-            isApiKeyStored = true;
-        }
-
-        if (rememberKey && apiKey !== '••••••••••••••••') {
-            const encryptedKey = await encryptApiKey(apiKey);
-            await localforage.setItem('encryptedApiKey', encryptedKey);
-        } else if (!rememberKey) {
-            await localforage.removeItem('encryptedApiKey');
-            isApiKeyStored = false;
-        }
-
         const modalElement = document.getElementById('apiSettingsModal');
         const modal = bootstrap.Modal.getInstance(modalElement);
         modal.hide();
+
+        currentApiService = apiServiceSelect.value;
+        await localforage.setItem('apiService', currentApiService);
+
+        const selectedModelId = modelSelection.value;
+        await localforage.setItem('savedModelId', selectedModelId);
+
+        if (currentApiService === 'openai') {
+            const apiKey = apiKeyInput.value;
+            const rememberKey = rememberKeyCheckbox.checked;
+
+            if (apiKey && apiKey !== '••••••••••••••••') {
+                openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+                isApiKeyStored = true;
+            }
+
+            if (rememberKey && apiKey !== '••••••••••••••••') {
+                const encryptedKey = await encryptApiKey(apiKey);
+                await localforage.setItem('encryptedApiKey', encryptedKey);
+            } else if (!rememberKey) {
+                await localforage.removeItem('encryptedApiKey');
+                isApiKeyStored = false;
+            }
+        }
+
+        if (currentApiService === 'webllm') {
+            await initializeWebLLM(selectedModelId); // Ensure model is loaded only once settings are saved
+        }
+
+        updateModelNameDisplay(); // Add this line
     }
 
     async function loadApiSettings() {
         const encryptedKey = await localforage.getItem('encryptedApiKey');
+        const savedApiService = await localforage.getItem('apiService');
+        const savedModelId = await localforage.getItem('savedModelId');
 
-        if (encryptedKey) {
-            const apiKey = await decryptApiKey(encryptedKey);
-            openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
-            isApiKeyStored = true;
-            rememberKeyCheckbox.checked = true;
-            warningText.style.display = 'block';
-            warningText.classList.remove('text-muted');
-            warningText.classList.add('text-danger');
-        } else {
-            isApiKeyStored = false;
+        if (savedApiService) {
+            currentApiService = savedApiService;
+            apiServiceSelect.value = currentApiService;
         }
+
+        const webLlmSelect = document.getElementById('modelSelection');
+        const apiKeyInputDiv = document.querySelector('#apiKey').parentElement;
+        const rememberKeyCheckboxDiv = document.querySelector('#rememberKey').parentElement;
+
+        if (currentApiService === 'webllm') {
+            webLlmSelect.style.display = 'block';
+            apiKeyInputDiv.style.display = 'none';
+            rememberKeyCheckboxDiv.style.display = 'none';
+            warningText.style.display = 'none';
+            if (savedModelId) {
+                modelSelection.value = savedModelId;
+                await initializeWebLLM(savedModelId); // Ensure model is loaded only once on startup
+            }
+        } else {
+            webLlmSelect.style.display = 'none';
+            apiKeyInputDiv.style.display = 'block';
+            rememberKeyCheckboxDiv.style.display = 'block';
+            warningText.style.display = rememberKeyCheckbox.checked ? 'block' : 'none';
+
+            if (encryptedKey) {
+                const apiKey = await decryptApiKey(encryptedKey);
+                openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+                isApiKeyStored = true;
+                rememberKeyCheckbox.checked = true;
+                warningText.style.display = 'block';
+                warningText.classList.remove('text-muted');
+                warningText.classList.add('text-danger');
+            } else {
+                isApiKeyStored = false;
+            }
+        }
+
+        updateModelNameDisplay(); // Add this line to update the display after loading settings
     }
 
     async function encryptApiKey(apiKey) {
@@ -444,4 +706,19 @@ document.addEventListener("DOMContentLoaded", function () {
             apiKeyInput.type = 'text';
         }
     }
+
+    async function markLoadedModels() {
+        const storedModels = await localforage.getItem('storedModels') || [];
+        const modelSelection = document.getElementById('modelSelection');
+        const options = Array.from(modelSelection.options);
+
+        options.forEach(option => {
+            if (storedModels.includes(option.value)) {
+                option.text = `✅ ${option.text.replace(/^✅\s*/, '')}`;
+            } else {
+                option.text = option.text.replace(/^✅\s*/, '');
+            }
+        });
+    }
+
 });
