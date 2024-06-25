@@ -8123,8 +8123,6 @@ ${str(snapshot)}`);
     const preview = document.getElementById("preview");
     const promptsDiv = document.getElementById("prompts");
     const promptsContent = document.getElementById("promptsContent");
-    const progressBar = document.getElementById("progressBar");
-    const progressBarInner = progressBar.querySelector(".progress-bar");
     const autoSuggestToggle = document.getElementById("autoSuggestToggle");
     const darkModeToggle = document.getElementById("darkModeToggle");
     const toggleButton = document.getElementById("toggleButton");
@@ -8133,21 +8131,17 @@ ${str(snapshot)}`);
     const deleteButton = document.getElementById("deleteButton");
     const apiSettingsButton = document.getElementById("apiSettingsButton");
     const saveApiSettingsButton = document.getElementById("saveApiSettings");
-    const apiServiceSelect = document.getElementById("apiService");
     const apiKeyInput = document.getElementById("apiKey");
     const rememberKeyCheckbox = document.getElementById("rememberKey");
     const warningText = document.getElementById("warningText");
+    const refreshPromptsButton = document.getElementById("refreshPrompts");
     const modalElement = document.getElementById("apiSettingsModal");
     new bootstrap.Modal(modalElement);
     let timeout;
-    let progressTimeout;
-    let progressInterval;
-    let saveTimeout;
     let isPreviewMode = false;
     let isDarkMode = false;
     let isAutoSuggestOn = true;
-    let currentApiKey = null;
-    let currentApiService = "openai";
+    let isApiKeyStored = false;
     import_localforage.default.config({
       name: "WriteSuggest"
     });
@@ -8165,8 +8159,11 @@ ${str(snapshot)}`);
     apiSettingsButton.addEventListener("click", openApiSettingsModal);
     saveApiSettingsButton.addEventListener("click", saveApiSettings);
     editor.addEventListener("paste", handlePaste);
+    apiKeyInput.addEventListener("focus", handleApiKeyInputFocus);
+    apiKeyInput.addEventListener("blur", handleApiKeyInputBlur);
+    refreshPromptsButton.addEventListener("click", instantRefreshPrompts);
     rememberKeyCheckbox.addEventListener("change", function() {
-      if (rememberKeyCheckbox.checked) {
+      if (this.checked) {
         warningText.style.display = "block";
         warningText.classList.remove("text-muted");
         warningText.classList.add("text-danger");
@@ -8174,6 +8171,9 @@ ${str(snapshot)}`);
         warningText.style.display = "none";
         warningText.classList.remove("text-danger");
         warningText.classList.add("text-muted");
+        apiKeyInput.value = "";
+        apiKeyInput.type = "password";
+        isApiKeyStored = false;
       }
     });
     if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -8190,36 +8190,34 @@ ${str(snapshot)}`);
     }
     function handleInput() {
       clearTimeout(timeout);
-      clearTimeout(progressTimeout);
-      clearInterval(progressInterval);
-      resetProgressBar();
       const text = editor.value.trim();
       if (text.length > 0 && isAutoSuggestOn) {
-        progressTimeout = setTimeout(startProgressBar, 2e3);
-        timeout = setTimeout(showSuggestions, 5e3);
+        timeout = setTimeout(() => {
+          getSuggestions(text).then((suggestions) => {
+            setTimeout(() => {
+              displaySuggestions(suggestions);
+            }, 2e3);
+          });
+        }, 3e3);
       } else {
         promptsContent.innerHTML = "";
       }
       saveTimeout = setTimeout(saveText, 1e3);
+      refreshPromptsButton.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
     }
-    function startProgressBar() {
-      progressBar.classList.remove("d-none");
-      progressBarInner.style.width = "0%";
-      progressBarInner.setAttribute("aria-valuenow", 0);
-      let progress = 0;
-      progressInterval = setInterval(() => {
-        progress += 1;
-        progressBarInner.style.width = `${progress}%`;
-        progressBarInner.setAttribute("aria-valuenow", progress);
-        if (progress >= 100) {
-          clearInterval(progressInterval);
-        }
-      }, 30);
-    }
-    function resetProgressBar() {
-      progressBar.classList.add("d-none");
-      progressBarInner.style.width = "0%";
-      progressBarInner.setAttribute("aria-valuenow", 0);
+    function displaySuggestions(suggestions) {
+      promptsContent.innerHTML = suggestions.map((suggestion) => `<div class="suggestion">${suggestion}</div>`).join("");
+      savePrompts(suggestions);
+      const suggestionElements = promptsContent.querySelectorAll(".suggestion");
+      suggestionElements.forEach((el, index) => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(20px)";
+        setTimeout(() => {
+          el.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+          el.style.opacity = "1";
+          el.style.transform = "translateY(0)";
+        }, index * 100);
+      });
     }
     function saveText() {
       import_localforage.default.setItem("savedText", editor.value).catch((err) => console.error("Error saving text:", err));
@@ -8230,7 +8228,6 @@ ${str(snapshot)}`);
         if (savedText) {
           editor.value = savedText;
           if (isAutoSuggestOn) {
-            progressTimeout = setTimeout(startProgressBar, 2e3);
             timeout = setTimeout(showSuggestions, 5e3);
           }
         }
@@ -8277,7 +8274,6 @@ ${str(snapshot)}`);
         editor.value = "";
         import_localforage.default.removeItem("savedText").then(() => console.log("Text deleted successfully")).catch((err) => console.error("Error deleting text:", err));
         promptsContent.innerHTML = "";
-        resetProgressBar();
       }
     }
     function toggleAutoSuggest() {
@@ -8286,14 +8282,19 @@ ${str(snapshot)}`);
       autoSuggestToggle.title = isAutoSuggestOn ? "Turn Off Auto Suggestions" : "Turn On Auto Suggestions";
       import_localforage.default.setItem("isAutoSuggestOn", isAutoSuggestOn).catch((err) => console.error("Error saving auto-suggest setting:", err));
       if (isAutoSuggestOn) {
-        progressTimeout = setTimeout(startProgressBar, 2e3);
         timeout = setTimeout(showSuggestions, 5e3);
       } else {
         clearTimeout(timeout);
-        clearTimeout(progressTimeout);
-        clearInterval(progressInterval);
-        resetProgressBar();
         promptsContent.innerHTML = "";
+      }
+    }
+    function instantRefreshPrompts() {
+      clearTimeout(timeout);
+      const text = editor.value.trim();
+      if (text.length > 0) {
+        showSuggestions();
+      } else {
+        promptsContent.innerHTML = "<div>Please start writing to get suggestions.</div>";
       }
     }
     function togglePreview() {
@@ -8348,19 +8349,15 @@ ${str(snapshot)}`);
       const text = editor.value.trim();
       if (text.length === 0) {
         promptsContent.innerHTML = "";
-        resetProgressBar();
-        document.getElementById("prompts").style.display = "none";
         return;
       }
+      promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
       try {
         const suggestions = await getSuggestions(text);
-        promptsContent.innerHTML = suggestions.map((suggestion) => `<div>${suggestion}</div>`).join("");
-        savePrompts(suggestions);
-        resetProgressBar();
+        displaySuggestions(suggestions);
       } catch (error) {
         console.error("Error getting suggestions:", error);
         promptsContent.innerHTML = "<div>Error fetching suggestions. Please check your API settings.</div>";
-        resetProgressBar();
       }
     }
     async function getSuggestions(text) {
@@ -8401,19 +8398,28 @@ Based on the recent part: "${recentText}", please provide three short and simple
     function openApiSettingsModal() {
       const modalElement2 = document.getElementById("apiSettingsModal");
       const modal = new bootstrap.Modal(modalElement2);
+      if (isApiKeyStored) {
+        apiKeyInput.value = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+        apiKeyInput.type = "text";
+      } else {
+        apiKeyInput.value = "";
+        apiKeyInput.type = "password";
+      }
       modal.show();
     }
     async function saveApiSettings() {
       const apiKey = apiKeyInput.value;
       const rememberKey = rememberKeyCheckbox.checked;
-      if (apiKey) {
+      if (apiKey && apiKey !== "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022") {
         openai = new openai_default({ apiKey, dangerouslyAllowBrowser: true });
+        isApiKeyStored = true;
       }
-      if (rememberKey) {
+      if (rememberKey && apiKey !== "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022") {
         const encryptedKey = await encryptApiKey(apiKey);
         await import_localforage.default.setItem("encryptedApiKey", encryptedKey);
-      } else {
+      } else if (!rememberKey) {
         await import_localforage.default.removeItem("encryptedApiKey");
+        isApiKeyStored = false;
       }
       const modalElement2 = document.getElementById("apiSettingsModal");
       const modal = bootstrap.Modal.getInstance(modalElement2);
@@ -8424,10 +8430,13 @@ Based on the recent part: "${recentText}", please provide three short and simple
       if (encryptedKey) {
         const apiKey = await decryptApiKey(encryptedKey);
         openai = new openai_default({ apiKey, dangerouslyAllowBrowser: true });
+        isApiKeyStored = true;
         rememberKeyCheckbox.checked = true;
         warningText.style.display = "block";
         warningText.classList.remove("text-muted");
         warningText.classList.add("text-danger");
+      } else {
+        isApiKeyStored = false;
       }
     }
     async function encryptApiKey(apiKey) {
@@ -8465,6 +8474,18 @@ Based on the recent part: "${recentText}", please provide three short and simple
       );
       const decoder = new TextDecoder();
       return decoder.decode(decryptedData);
+    }
+    function handleApiKeyInputFocus() {
+      if (isApiKeyStored) {
+        apiKeyInput.value = "";
+        apiKeyInput.type = "password";
+      }
+    }
+    function handleApiKeyInputBlur() {
+      if (isApiKeyStored && apiKeyInput.value === "") {
+        apiKeyInput.value = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+        apiKeyInput.type = "text";
+      }
     }
   });
 })();

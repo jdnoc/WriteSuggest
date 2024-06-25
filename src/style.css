@@ -83,7 +83,7 @@ body, html {
     transition: color 0.3s ease;
 }
 
-#progressBar {
+/* #progressBar {
     height: 3px;
     background-color: #f0f0f0;
     margin-bottom: 10px;
@@ -94,7 +94,7 @@ body, html {
     background-color: #007bff;
     transition: width 0.1s linear, background-color 0.3s ease;
     height: 100%;
-}
+} */
 
 /* Dark mode styles */
 .dark-mode {
@@ -242,4 +242,19 @@ body, html {
         padding: 0.25rem 0.5rem;
         font-size: 0.875rem;
     }
+}
+
+#promptsContent .suggestion {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+#refreshPrompts .bi-arrow-clockwise {
+    font-size: 1rem;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
 }

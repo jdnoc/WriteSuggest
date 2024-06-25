@@ -10,8 +10,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const preview = document.getElementById("preview");
     const promptsDiv = document.getElementById("prompts");
     const promptsContent = document.getElementById("promptsContent");
-    const progressBar = document.getElementById("progressBar");
-    const progressBarInner = progressBar.querySelector('.progress-bar');
     const autoSuggestToggle = document.getElementById("autoSuggestToggle");
     const darkModeToggle = document.getElementById("darkModeToggle");
     const toggleButton = document.getElementById("toggleButton");
@@ -20,24 +18,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const deleteButton = document.getElementById("deleteButton");
     const apiSettingsButton = document.getElementById("apiSettingsButton");
     const saveApiSettingsButton = document.getElementById("saveApiSettings");
-    const apiServiceSelect = document.getElementById("apiService");
     const apiKeyInput = document.getElementById("apiKey");
     const rememberKeyCheckbox = document.getElementById("rememberKey");
     const warningText = document.getElementById("warningText");
+    const refreshPromptsButton = document.getElementById("refreshPrompts");
 
     // Initialize the modal
     const modalElement = document.getElementById('apiSettingsModal');
     new bootstrap.Modal(modalElement);
 
     let timeout;
-    let progressTimeout;
-    let progressInterval;
-    let saveTimeout;
     let isPreviewMode = false;
     let isDarkMode = false;
     let isAutoSuggestOn = true;
-    let currentApiKey = null;
-    let currentApiService = 'openai';
+    let isApiKeyStored = false;
 
     // Initialize LocalForage
     localforage.config({
@@ -60,10 +54,13 @@ document.addEventListener("DOMContentLoaded", function () {
     apiSettingsButton.addEventListener("click", openApiSettingsModal);
     saveApiSettingsButton.addEventListener("click", saveApiSettings);
     editor.addEventListener("paste", handlePaste);
+    apiKeyInput.addEventListener('focus', handleApiKeyInputFocus);
+    apiKeyInput.addEventListener('blur', handleApiKeyInputBlur);
+    refreshPromptsButton.addEventListener("click", instantRefreshPrompts);
 
     // Add event listener to toggle warning text
     rememberKeyCheckbox.addEventListener("change", function () {
-        if (rememberKeyCheckbox.checked) {
+        if (this.checked) {
             warningText.style.display = 'block';
             warningText.classList.remove('text-muted');
             warningText.classList.add('text-danger');
@@ -71,6 +68,11 @@ document.addEventListener("DOMContentLoaded", function () {
             warningText.style.display = 'none';
             warningText.classList.remove('text-danger');
             warningText.classList.add('text-muted');
+
+            // Clear the API key input and reset stored state when unchecked
+            apiKeyInput.value = '';
+            apiKeyInput.type = 'password';
+            isApiKeyStored = false;
         }
     });
 
@@ -92,40 +94,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function handleInput() {
         clearTimeout(timeout);
-        clearTimeout(progressTimeout);
-        clearInterval(progressInterval);
-        resetProgressBar();
 
         const text = editor.value.trim();
 
         if (text.length > 0 && isAutoSuggestOn) {
-            progressTimeout = setTimeout(startProgressBar, 2000);
-            timeout = setTimeout(showSuggestions, 5000);
+            timeout = setTimeout(() => {
+                getSuggestions(text).then(suggestions => {
+                    setTimeout(() => {
+                        displaySuggestions(suggestions);
+                    }, 2000); // Display after 2 more seconds (5 seconds total)
+                });
+            }, 3000); // Start getting suggestions after 3 seconds
         } else {
             promptsContent.innerHTML = "";
         }
         saveTimeout = setTimeout(saveText, 1000);
+
+        // Reset the refresh button icon
+        refreshPromptsButton.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
     }
 
-    function startProgressBar() {
-        progressBar.classList.remove('d-none');
-        progressBarInner.style.width = '0%';
-        progressBarInner.setAttribute('aria-valuenow', 0);
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            progress += 1;
-            progressBarInner.style.width = `${progress}%`;
-            progressBarInner.setAttribute('aria-valuenow', progress);
-            if (progress >= 100) {
-                clearInterval(progressInterval);
-            }
-        }, 30); // 3000ms / 100 = 30ms per 1%
-    }
+    function displaySuggestions(suggestions) {
+        promptsContent.innerHTML = suggestions.map(suggestion => `<div class="suggestion">${suggestion}</div>`).join('');
+        savePrompts(suggestions);
 
-    function resetProgressBar() {
-        progressBar.classList.add('d-none');
-        progressBarInner.style.width = '0%';
-        progressBarInner.setAttribute('aria-valuenow', 0);
+        // Fade in and slide up animation
+        const suggestionElements = promptsContent.querySelectorAll('.suggestion');
+        suggestionElements.forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, index * 100); // Stagger the animation for each suggestion
+        });
     }
 
     function saveText() {
@@ -139,7 +142,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (savedText) {
                 editor.value = savedText;
                 if (isAutoSuggestOn) {
-                    progressTimeout = setTimeout(startProgressBar, 2000);
                     timeout = setTimeout(showSuggestions, 5000);
                 }
             }
@@ -194,7 +196,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(() => console.log('Text deleted successfully'))
                 .catch(err => console.error('Error deleting text:', err));
             promptsContent.innerHTML = '';
-            resetProgressBar();
         }
     }
 
@@ -205,14 +206,20 @@ document.addEventListener("DOMContentLoaded", function () {
         localforage.setItem('isAutoSuggestOn', isAutoSuggestOn)
             .catch(err => console.error('Error saving auto-suggest setting:', err));
         if (isAutoSuggestOn) {
-            progressTimeout = setTimeout(startProgressBar, 2000);
             timeout = setTimeout(showSuggestions, 5000);
         } else {
             clearTimeout(timeout);
-            clearTimeout(progressTimeout);
-            clearInterval(progressInterval);
-            resetProgressBar();
             promptsContent.innerHTML = "";
+        }
+    }
+
+    function instantRefreshPrompts() {
+        clearTimeout(timeout); // Clear any pending timeouts
+        const text = editor.value.trim();
+        if (text.length > 0) {
+            showSuggestions();
+        } else {
+            promptsContent.innerHTML = "<div>Please start writing to get suggestions.</div>";
         }
     }
 
@@ -274,22 +281,17 @@ document.addEventListener("DOMContentLoaded", function () {
         const text = editor.value.trim();
         if (text.length === 0) {
             promptsContent.innerHTML = "";
-            resetProgressBar();
-            document.getElementById('prompts').style.display = 'none';
             return;
         }
 
+        promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
         try {
             const suggestions = await getSuggestions(text);
-            promptsContent.innerHTML = suggestions.map(suggestion => `<div>${suggestion}</div>`).join('');
-            savePrompts(suggestions);
-            resetProgressBar();
-            // document.getElementById('prompts').style.display = 'block';
+            displaySuggestions(suggestions);
         } catch (error) {
             console.error('Error getting suggestions:', error);
             promptsContent.innerHTML = '<div>Error fetching suggestions. Please check your API settings.</div>';
-            resetProgressBar();
-            // document.getElementById('prompts').style.display = 'block';
         }
     }
 
@@ -341,6 +343,16 @@ document.addEventListener("DOMContentLoaded", function () {
     function openApiSettingsModal() {
         const modalElement = document.getElementById('apiSettingsModal');
         const modal = new bootstrap.Modal(modalElement);
+
+        // Show dummy text if a key is stored
+        if (isApiKeyStored) {
+            apiKeyInput.value = '••••••••••••••••';
+            apiKeyInput.type = 'text';
+        } else {
+            apiKeyInput.value = '';
+            apiKeyInput.type = 'password';
+        }
+
         modal.show();
     }
 
@@ -348,15 +360,17 @@ document.addEventListener("DOMContentLoaded", function () {
         const apiKey = apiKeyInput.value;
         const rememberKey = rememberKeyCheckbox.checked;
 
-        if (apiKey) {
+        if (apiKey && apiKey !== '••••••••••••••••') {
             openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+            isApiKeyStored = true;
         }
 
-        if (rememberKey) {
+        if (rememberKey && apiKey !== '••••••••••••••••') {
             const encryptedKey = await encryptApiKey(apiKey);
             await localforage.setItem('encryptedApiKey', encryptedKey);
-        } else {
+        } else if (!rememberKey) {
             await localforage.removeItem('encryptedApiKey');
+            isApiKeyStored = false;
         }
 
         const modalElement = document.getElementById('apiSettingsModal');
@@ -370,10 +384,13 @@ document.addEventListener("DOMContentLoaded", function () {
         if (encryptedKey) {
             const apiKey = await decryptApiKey(encryptedKey);
             openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+            isApiKeyStored = true;
             rememberKeyCheckbox.checked = true;
             warningText.style.display = 'block';
             warningText.classList.remove('text-muted');
             warningText.classList.add('text-danger');
+        } else {
+            isApiKeyStored = false;
         }
     }
 
@@ -412,5 +429,19 @@ document.addEventListener("DOMContentLoaded", function () {
         );
         const decoder = new TextDecoder();
         return decoder.decode(decryptedData);
+    }
+
+    function handleApiKeyInputFocus() {
+        if (isApiKeyStored) {
+            apiKeyInput.value = '';
+            apiKeyInput.type = 'password';
+        }
+    }
+
+    function handleApiKeyInputBlur() {
+        if (isApiKeyStored && apiKeyInput.value === '') {
+            apiKeyInput.value = '••••••••••••••••';
+            apiKeyInput.type = 'text';
+        }
     }
 });

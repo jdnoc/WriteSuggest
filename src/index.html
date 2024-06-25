@@ -45,6 +45,9 @@
                     <div class="button-container text-center mb-2">
                         <button id="autoSuggestToggle" class="btn btn-warning btn-sm me-1"
                             title="Turn Off Auto Suggestions"><i class="bi bi-stop-circle"></i></button>
+                        <button id="refreshPrompts" class="btn btn-primary btn-sm me-1" title="Refresh Prompts">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
                         <button id="darkModeToggle" class="btn btn-secondary btn-sm me-1" title="Toggle Dark Mode"><i
                                 class="bi bi-moon"></i></button>
                         <button id="toggleButton" class="btn btn-primary btn-sm me-1" title="Toggle Preview"><i
@@ -62,10 +65,6 @@
                     <div id="preview" class="d-none"></div>
                 </div>
                 <div id="prompts" class="w-100 mb-3">
-                    <div id="progressBar" class="progress d-none">
-                        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0"
-                            aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
                     <div id="promptsContent"></div>
                 </div>
             </div>
@@ -101,6 +100,10 @@
             </div>
         </div>
     </div>
+    <!-- console log something -->
+    <script>
+        console.log("WriteSuggest - AI-Powered Writing Assistant");
+    </script>
 
     <script src="bootstrap.bundle.min.js"></script>
     <script src="app.js"></script>
