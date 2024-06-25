@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let currentApiService = 'webllm'; // Default to webllm
     let isWebLLMLoading = false;
 
+    let modelLoadingController = new AbortController();
+
     const editor = document.getElementById("editor");
     const preview = document.getElementById("preview");
     const promptsDiv = document.getElementById("prompts");
@@ -53,24 +55,6 @@ document.addEventListener("DOMContentLoaded", function () {
     loadSavedPrompts();
     sortModelOptions();
     markLoadedModels();
-    updateModelNameDisplay();
-
-    function updateModelNameDisplay() {
-        const modelNameDisplay = document.getElementById('modelName');
-        if (currentApiService === 'webllm') {
-            const selectedModel = document.getElementById('modelSelection').value;
-            if (isWebLLMLoading) {
-                modelNameDisplay.textContent = `Loading: ${selectedModel}`;
-            } else {
-                modelNameDisplay.textContent = selectedModel;
-            }
-        } else if (currentApiService === 'openai') {
-            modelNameDisplay.textContent = "Open AI";
-        } else {
-            modelNameDisplay.textContent = "N/A";
-        }
-    }
-
 
     function sortModelOptions() {
         const select = document.getElementById('modelSelection');
@@ -95,6 +79,11 @@ document.addEventListener("DOMContentLoaded", function () {
     apiKeyInput.addEventListener('focus', handleApiKeyInputFocus);
     apiKeyInput.addEventListener('blur', handleApiKeyInputBlur);
     refreshPromptsButton.addEventListener("click", instantRefreshPrompts);
+    document.getElementById('clearLLMsButton').addEventListener('click', async function () {
+        if (confirm("Are you sure you want to clear cached LLMs? This action cannot be undone.")) {
+            await clearCachedModels();
+        }
+    });
     apiServiceSelect.addEventListener('change', async function () {
         currentApiService = this.value;
         const webLlmSelect = document.getElementById('modelSelection');
@@ -131,7 +120,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     modelSelection.addEventListener('change', function () {
-        updateModelNameDisplay(); // Add this line
+        updateModelNameDisplay();
+        const selectedModelId = this.value;
+        initializeWebLLM(selectedModelId);
     });
 
     // Add event listener to toggle warning text
@@ -435,7 +426,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             let suggestionsContent = response.choices[0].message.content.trim();
-            // console.log('Suggestions:', suggestionsContent);
+            console.log('Suggestions:', suggestionsContent);
 
             // Remove code fences if they are present
             if (suggestionsContent.startsWith('```') && suggestionsContent.endsWith('```')) {
@@ -505,11 +496,13 @@ document.addEventListener("DOMContentLoaded", function () {
         "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC"
     };
 
-    async function initializeWebLLM(modelId = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC") {
+    async function initializeWebLLM(modelId = "Qwen2-1.5B-Instruct-q4f32_1-MLC") {
         isWebLLMLoading = true;
-        updateModelNameDisplay(); // Add this line to show the loading status
-
         promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2" id="loadingText">Loading Web LLM model... This may take a few minutes.</div></div>';
+
+        // Abort previous model loading if a new model is selected
+        modelLoadingController.abort();
+        modelLoadingController = new AbortController();
 
         try {
             const modelUrl = modelList[modelId];
@@ -532,7 +525,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 modelId,
                 {
                     initProgressCallback: initProgressCallback,
-                    modelUrl: modelUrl
+                    modelUrl: modelUrl,
+                    signal: modelLoadingController.signal // Pass the signal here
                 }
             );
 
@@ -545,15 +539,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 await localforage.setItem('storedModels', storedModels);
                 markLoadedModels(); // Update the selection list
             }
-
-            updateModelNameDisplay(); // Add this line to update the display after loading
         } catch (error) {
-            console.error('Error loading Web LLM:', error);
-            promptsContent.innerHTML = '<div class="text-center text-danger">Error loading Web LLM. Please try again.</div>';
-            engine = null;
+            if (error.name === 'AbortError') {
+                console.log('Model loading aborted');
+            } else {
+                console.error('Error loading Web LLM:', error);
+                promptsContent.innerHTML = '<div class="text-center text-danger">Error loading Web LLM. Please try again.</div>';
+                engine = null;
+            }
         } finally {
             isWebLLMLoading = false;
-            updateModelNameDisplay(); // Add this line to ensure the loading status is cleared
         }
     }
 
@@ -721,4 +716,45 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    async function clearCachedModels() {
+        // Clear Cache Storage
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) {
+                await caches.delete(cacheName);
+            }
+            console.log("Cache storage cleared.");
+        }
+
+        // Clear the stored model names in IndexedDB
+        await localforage.removeItem('storedModels');
+        console.log("Stored model names cleared from IndexedDB.");
+
+        // Update UI and reset engine
+        engine = null;
+        isWebLLMLoading = false;
+        promptsContent.innerHTML = '<div class="text-center text-success">Cached LLMs have been cleared from the browser.</div>';
+
+        console.log("Cached LLMs cleared successfully");
+    }
+
+    updateModelNameDisplay();
+
+    async function updateModelNameDisplay() {
+        const modelNameDisplay = document.getElementById('modelName');
+        if (currentApiService === 'webllm') {
+            const selectedModel = document.getElementById('modelSelection').value;
+            const storedModels = await localforage.getItem('storedModels') || [];
+
+            if (storedModels.includes(selectedModel)) {
+                modelNameDisplay.textContent = selectedModel;
+            } else {
+                modelNameDisplay.textContent = isWebLLMLoading ? `Loading: ${selectedModel}` : "N/A";
+            }
+        } else if (currentApiService === 'openai') {
+            modelNameDisplay.textContent = "Open AI";
+        } else {
+            modelNameDisplay.textContent = "N/A";
+        }
+    }
 });
