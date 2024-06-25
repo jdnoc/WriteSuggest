@@ -84,6 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
             await clearCachedModels();
         }
     });
+
     apiServiceSelect.addEventListener('change', async function () {
         currentApiService = this.value;
         const webLlmSelect = document.getElementById('modelSelection');
@@ -107,11 +108,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 const apiKey = await decryptApiKey(encryptedKey);
                 apiKeyInput.value = '••••••••••••••••';
                 apiKeyInput.type = 'text';
+                rememberKeyCheckbox.checked = true;
                 openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
                 isApiKeyStored = true;
             } else {
                 apiKeyInput.value = '';
                 apiKeyInput.type = 'password';
+                rememberKeyCheckbox.checked = false;
                 isApiKeyStored = false;
             }
         }
@@ -496,7 +499,7 @@ document.addEventListener("DOMContentLoaded", function () {
         "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC"
     };
 
-    async function initializeWebLLM(modelId = "Qwen2-1.5B-Instruct-q4f32_1-MLC") {
+    async function initializeWebLLM(modelId) {
         isWebLLMLoading = true;
         promptsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2" id="loadingText">Loading Web LLM model... This may take a few minutes.</div></div>';
 
@@ -511,7 +514,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const initProgressCallback = (initProgress) => {
-                // console.log(initProgress);
                 const loadingText = document.getElementById('loadingText');
                 if (loadingText) {
                     loadingText.innerHTML = `Loading Web LLM model... ${Math.round(initProgress.progress * 100)}% complete.`;
@@ -600,6 +602,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (currentApiService === 'webllm') {
+            if (isWebLLMLoading) {
+                modelLoadingController.abort(); // Abort the current loading model
+            }
             await initializeWebLLM(selectedModelId); // Ensure model is loaded only once settings are saved
         }
 
